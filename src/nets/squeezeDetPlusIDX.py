@@ -1,25 +1,20 @@
-# Author: Bichen Wu (bichen@berkeley.edu) 08/25/2016
+# Author: Songlin Piao 05/06/2019
 
-"""SqueezeDet model."""
+"""SqueezeDet+ model with IDX CONV layer."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import sys
 
 import joblib
-from utils import util
-from easydict import EasyDict as edict
-import numpy as np
 import tensorflow as tf
-from nn_skeleton import ModelSkeleton
+from nets.IDXDet import IDXDet
 
-class SqueezeDet(ModelSkeleton):
-  def __init__(self, mc, gpu_id=0):
+class SqueezeDetPlusIDX(IDXDet):
+  def __init__(self, mc, gpu_id=0, input_channels=2):
     with tf.device('/gpu:{}'.format(gpu_id)):
-      ModelSkeleton.__init__(self, mc)
+      IDXDet.__init__(self, mc, input_channels)
 
       self._add_forward_graph()
       self._add_interpretation_graph()
@@ -36,42 +31,46 @@ class SqueezeDet(ModelSkeleton):
           'Cannot find pretrained model at the given path:' \
           '  {}'.format(mc.PRETRAINED_MODEL_PATH)
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
-      #self.caffemodel_weight = cPickle.load(open(mc.PRETRAINED_MODEL_PATH))
+
+    idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[8, 8], cells_=[2, 2],
+                     offset_=[0, 0, 1, -1, -1, 1, 1, 1, 0, 1, 1, 0, -1, 0], anchorsize_=[1, 1])
+
+    concat1 = tf.concat(axis=-1, values=[self.image_input, idxconv1], name='concat1')
 
     conv1 = self._conv_layer(
-        'conv1', self.image_input, filters=64, size=3, stride=2,
-        padding='SAME', freeze=True)
+        'conv1', concat1, filters=96, size=7, stride=2,
+        padding='VALID', freeze=True)
     pool1 = self._pooling_layer(
-        'pool1', conv1, size=3, stride=2, padding='SAME')
+        'pool1', conv1, size=3, stride=2, padding='VALID')
 
     fire2 = self._fire_layer(
-        'fire2', pool1, s1x1=16, e1x1=64, e3x3=64, freeze=False)
+        'fire2', pool1, s1x1=96, e1x1=64, e3x3=64, freeze=False)
     fire3 = self._fire_layer(
-        'fire3', fire2, s1x1=16, e1x1=64, e3x3=64, freeze=False)
-    pool3 = self._pooling_layer(
-        'pool3', fire3, size=3, stride=2, padding='SAME')
-
+        'fire3', fire2, s1x1=96, e1x1=64, e3x3=64, freeze=False)
     fire4 = self._fire_layer(
-        'fire4', pool3, s1x1=32, e1x1=128, e3x3=128, freeze=False)
-    fire5 = self._fire_layer(
-        'fire5', fire4, s1x1=32, e1x1=128, e3x3=128, freeze=False)
-    pool5 = self._pooling_layer(
-        'pool5', fire5, size=3, stride=2, padding='SAME')
+        'fire4', fire3, s1x1=192, e1x1=128, e3x3=128, freeze=False)
+    pool4 = self._pooling_layer(
+        'pool4', fire4, size=3, stride=2, padding='VALID')
 
+    fire5 = self._fire_layer(
+        'fire5', pool4, s1x1=192, e1x1=128, e3x3=128, freeze=False)
     fire6 = self._fire_layer(
-        'fire6', pool5, s1x1=48, e1x1=192, e3x3=192, freeze=False)
+        'fire6', fire5, s1x1=288, e1x1=192, e3x3=192, freeze=False)
     fire7 = self._fire_layer(
-        'fire7', fire6, s1x1=48, e1x1=192, e3x3=192, freeze=False)
+        'fire7', fire6, s1x1=288, e1x1=192, e3x3=192, freeze=False)
     fire8 = self._fire_layer(
-        'fire8', fire7, s1x1=64, e1x1=256, e3x3=256, freeze=False)
+        'fire8', fire7, s1x1=384, e1x1=256, e3x3=256, freeze=False)
+    pool8 = self._pooling_layer(
+        'pool8', fire8, size=3, stride=2, padding='VALID')
+
     fire9 = self._fire_layer(
-        'fire9', fire8, s1x1=64, e1x1=256, e3x3=256, freeze=False)
+        'fire9', pool8, s1x1=384, e1x1=256, e3x3=256, freeze=False)
 
     # Two extra fire modules that are not trained before
     fire10 = self._fire_layer(
-        'fire10', fire9, s1x1=96, e1x1=384, e3x3=384, freeze=False)
+        'fire10', fire9, s1x1=384, e1x1=256, e3x3=256, freeze=False)
     fire11 = self._fire_layer(
-        'fire11', fire10, s1x1=96, e1x1=384, e3x3=384, freeze=False)
+        'fire11', fire10, s1x1=384, e1x1=256, e3x3=256, freeze=False)
     dropout11 = tf.nn.dropout(fire11, self.keep_prob, name='drop11')
 
     num_output = mc.ANCHOR_PER_GRID * (mc.CLASSES + 1 + 4)

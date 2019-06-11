@@ -48,12 +48,12 @@ def video_demo():
 
   # Define the codec and create VideoWriter object
   # fourcc = cv2.cv.CV_FOURCC(*'XVID')
-  # fourcc = cv2.cv.CV_FOURCC(*'MJPG')
-  # in_file_name = os.path.split(FLAGS.input_path)[1]
-  # out_file_name = os.path.join(FLAGS.out_dir, 'out_'+in_file_name)
-  # out = cv2.VideoWriter(out_file_name, fourcc, 30.0, (375,1242), True)
+  fourcc = cv2.VideoWriter_fourcc(*'x264')
+  #in_file_name = os.path.split(FLAGS.input_path)[1]
+  out_file_name = os.path.join(FLAGS.out_dir, 'out_result.avi')
+  out = cv2.VideoWriter(out_file_name, fourcc, 30.0, (1242, 375), True)
   # out = VideoWriter(out_file_name, frameSize=(1242, 375))
-  # out.open()
+  #out.open()
 
   assert FLAGS.demo_net == 'squeezeDet' or FLAGS.demo_net == 'squeezeDet+', \
       'Selected nueral net architecture not supported: {}'.format(FLAGS.demo_net)
@@ -77,6 +77,9 @@ def video_demo():
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
       saver.restore(sess, FLAGS.checkpoint)
 
+      saver.save(sess, "/tmp/resave_checkpoint", global_step=0)
+      tf.train.write_graph(sess.graph.as_graph_def(), "/tmp", "squeezedet.pbtx")
+
       times = {}
       count = 0
       while cap.isOpened():
@@ -88,7 +91,7 @@ def video_demo():
         ret, frame = cap.read()
         if ret==True:
           # crop frames
-          frame = frame[500:-205, 239:-439, :]
+          #frame = frame[500:-205, 239:-439, :]
           im_input = frame.astype(np.float32) - mc.BGR_MEANS
         else:
           break
@@ -100,6 +103,10 @@ def video_demo():
         det_boxes, det_probs, det_class = sess.run(
             [model.det_boxes, model.det_probs, model.det_class],
             feed_dict={model.image_input:[im_input]})
+
+        print("pred_class_probs shape: ", det_class.shape)
+        print("pred_confidence_score: ", det_probs.shape)
+        print("bbox_delta: ", det_boxes.shape)
 
         t_detect = time.time()
         times['detect']= t_detect - t_reshape
@@ -136,7 +143,7 @@ def video_demo():
         times['draw']= t_draw - t_filter
 
         cv2.imwrite(out_im_name, frame)
-        # out.write(frame)
+        out.write(frame)
 
         times['total']= time.time() - t_start
 
@@ -154,7 +161,7 @@ def video_demo():
             break
   # Release everything if job is finished
   cap.release()
-  # out.release()
+  out.release()
   cv2.destroyAllWindows()
 
 

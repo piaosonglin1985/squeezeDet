@@ -13,6 +13,9 @@ from utils import util
 from easydict import EasyDict as edict
 import numpy as np
 import tensorflow as tf
+from _idx_conv_grad import *
+from _idx_conv import idx_conv_module
+
 
 
 def _add_loss_summaries(total_loss):
@@ -102,26 +105,7 @@ class ModelSkeleton:
       name='iou', dtype=tf.float32
     )
 
-    self.FIFOQueue = tf.FIFOQueue(
-        capacity=mc.QUEUE_CAPACITY,
-        dtypes=[tf.float32, tf.float32, tf.float32, 
-                tf.float32, tf.float32],
-        shapes=[[mc.IMAGE_HEIGHT, mc.IMAGE_WIDTH, 3],
-                [mc.ANCHORS, 1],
-                [mc.ANCHORS, 4],
-                [mc.ANCHORS, 4],
-                [mc.ANCHORS, mc.CLASSES]],
-    )
-
-    self.enqueue_op = self.FIFOQueue.enqueue_many(
-        [self.ph_image_input, self.ph_input_mask,
-         self.ph_box_delta_input, self.ph_box_input, self.ph_labels]
-    )
-
-    self.image_input, self.input_mask, self.box_delta_input, \
-        self.box_input, self.labels = tf.train.batch(
-            self.FIFOQueue.dequeue(), batch_size=mc.BATCH_SIZE,
-            capacity=mc.QUEUE_CAPACITY) 
+    self._init_input()
 
     # model parameters
     self.model_params = []
@@ -133,6 +117,37 @@ class ModelSkeleton:
     # activation counter
     self.activation_counter = [] # array of tuple of layer name, output activations
     self.activation_counter.append(('input', mc.IMAGE_WIDTH*mc.IMAGE_HEIGHT*3))
+
+  def _init_input(self):
+      mc = self.mc
+      if mc.IS_TRAINING:
+
+          self.FIFOQueue = tf.FIFOQueue(
+              capacity=mc.QUEUE_CAPACITY,
+              dtypes=[tf.float32, tf.float32, tf.float32,
+                      tf.float32, tf.float32],
+              shapes=[[mc.IMAGE_HEIGHT, mc.IMAGE_WIDTH, 3],
+                      [mc.ANCHORS, 1],
+                      [mc.ANCHORS, 4],
+                      [mc.ANCHORS, 4],
+                      [mc.ANCHORS, mc.CLASSES]]
+          )
+
+          self.enqueue_op = self.FIFOQueue.enqueue_many(
+              [self.ph_image_input, self.ph_input_mask,
+               self.ph_box_delta_input, self.ph_box_input, self.ph_labels]
+          )
+
+          self.image_input, self.input_mask, self.box_delta_input, \
+          self.box_input, self.labels = tf.train.batch(
+              self.FIFOQueue.dequeue(), batch_size=mc.BATCH_SIZE,
+              capacity=mc.QUEUE_CAPACITY)
+      else:
+          self.image_input = self.ph_image_input
+          self.input_mask = self.ph_input_mask
+          self.box_delta_input = self.ph_box_delta_input
+          self.box_input = self.ph_box_input
+          self.labels = self.ph_labels
 
 
   def _add_forward_graph(self):
@@ -158,7 +173,9 @@ class ModelSkeleton:
           [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
           name='pred_class_probs'
       )
-      
+
+      print("pred_class_probs shape: ", self.pred_class_probs.get_shape())
+
       # confidence
       num_confidence_scores = mc.ANCHOR_PER_GRID+num_class_probs
       self.pred_conf = tf.sigmoid(
@@ -169,12 +186,16 @@ class ModelSkeleton:
           name='pred_confidence_score'
       )
 
+      print("pred_confidence_score: ", self.pred_conf.get_shape())
+
       # bbox_delta
       self.pred_box_delta = tf.reshape(
           preds[:, :, :, num_confidence_scores:],
           [mc.BATCH_SIZE, mc.ANCHORS, 4],
           name='bbox_delta'
       )
+
+      print("bbox_delta: ", self.pred_box_delta.get_shape())
 
       # number of object. Used to normalize bbox and classification loss
       self.num_objects = tf.reduce_sum(self.input_mask, name='num_objects')
@@ -353,9 +374,9 @@ class ModelSkeleton:
     for var in tf.trainable_variables():
         tf.summary.histogram(var.op.name, var)
 
-    for grad, var in grads_vars:
-      if grad is not None:
-        tf.summary.histogram(var.op.name + '/gradients', grad)
+    #for grad, var in grads_vars:
+      #if grad is not None:
+        #tf.summary.histogram(var.op.name + '/gradients', grad)
 
     with tf.control_dependencies([apply_gradient_op]):
       self.train_op = tf.no_op(name='train')
@@ -370,6 +391,10 @@ class ModelSkeleton:
     self.viz_op = tf.summary.image('sample_detection_results',
         self.image_to_show, collections='image_summary',
         max_outputs=mc.BATCH_SIZE)
+
+  def validate_padding(self, padding):
+      '''Verifies that the padding is one of the supported ones.'''
+      assert padding in ('SAME', 'VALID')
 
   def _conv_bn_layer(
       self, inputs, conv_param_name, bn_param_name, scale_param_name, filters,
@@ -561,6 +586,44 @@ class ModelSkeleton:
       )
 
       return out
+
+  def _idx_conv2d_layer(self,
+                 inputs,
+                 s_h,
+                 s_w,
+                 name,
+                 padding_="SAME",
+                 freeze=False,
+                 num_bins_=9,
+                 cellsize_=[8, 8],
+                 cells_=[2, 2],
+                 offset_=[0, 0, -1, -1, 1, -1, -1, 1, 1, 1],
+                 anchorsize_=[16, 16],
+                 relu=True,
+                 biased=True):
+      # Verify that the padding is acceptable
+      self.validate_padding(padding_)
+
+      idx = inputs[0]
+      mag = inputs[1]
+
+      num_blocks = len(offset_) / 2
+      offset_tensor_proto = tf.make_tensor_proto(offset_, dtype=tf.int32, shape=[num_blocks, 2])
+      desc_len = num_bins_ * cells_[0] * cells_[1]
+
+      with tf.variable_scope(name) as scope:
+          w_idx_conv = tf.get_variable("idx_conv_weigths", [num_blocks, desc_len], trainable=(not freeze))
+          idx_conv_out = idx_conv_module.idx_conv(idx, mag, w_idx_conv, strides=[s_h, s_w], padding=padding_,
+                                                  num_bins=num_bins_, cellsize=cellsize_, cells=cells_,
+                                                  offset=offset_tensor_proto,
+                                                  input_size=[self.mc.IMAGE_HEIGHT, self.mc.IMAGE_WIDTH], anchor_size=anchorsize_)
+
+          if biased:
+              biases = tf.get_variable('biases', [1], trainable=(not freeze))
+              output = tf.nn.bias_add(idx_conv_out, biases)
+          if relu:
+              output = tf.nn.relu(output, name=scope.name)
+          return output
   
   def _pooling_layer(
       self, layer_name, inputs, size, stride, padding='SAME'):

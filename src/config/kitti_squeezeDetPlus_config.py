@@ -12,7 +12,7 @@ def kitti_squeezeDetPlus_config():
 
   mc.IMAGE_WIDTH           = 1242
   mc.IMAGE_HEIGHT          = 375
-  mc.BATCH_SIZE            = 20
+  mc.BATCH_SIZE            = 8
 
   mc.WEIGHT_DECAY          = 0.0001
   mc.LEARNING_RATE         = 0.01

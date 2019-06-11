@@ -5,11 +5,12 @@
 import os
 import random
 import shutil
-
+import hog
 from PIL import Image, ImageFont, ImageDraw
 import cv2
 import numpy as np
 from utils.util import iou, batch_iou
+from idx_mag_generation import  gen_idx_mag_hog
 
 class imdb(object):
   """Image database."""
@@ -26,6 +27,11 @@ class imdb(object):
     # batch reader
     self._perm_idx = None
     self._cur_idx = 0
+
+    self.desc = hog.HOGDescriptor(hog.Size(18, 36), hog.Size(12, 12), hog.Size(6, 6), hog.Size(6, 6), 9, 1, -1,
+                             hog.HOGDescriptor.L2Hys, 0.2, True)
+    self.cache = hog.HOGCache()
+    self.cache.init(self.desc, hog.Size(mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), hog.Size(0, 0), hog.Size(0, 0), False, hog.Size(1, 1))
 
   @property
   def name(self):
@@ -246,6 +252,172 @@ class imdb(object):
       print ('number of objects with 0 iou: {}'.format(num_zero_iou_obj))
 
     return image_per_batch, label_per_batch, delta_per_batch, \
+        aidx_per_batch, bbox_per_batch
+
+  def read_batch_with_idx_mag(self, shuffle=True):
+    """Read a batch of image and bounding box annotations.
+    Args:
+      shuffle: whether or not to shuffle the dataset
+    Returns:
+      image_per_batch: images. Shape: batch_size x width x height x [b, g, r]
+      index_per_batch: indexes. Shape: batch_size x width x height x 1
+      mag_per_batch:   mags.    Shape: batch_size x width x height x 1
+      label_per_batch: labels. Shape: batch_size x object_num
+      delta_per_batch: bounding box deltas. Shape: batch_size x object_num x
+          [dx ,dy, dw, dh]
+      aidx_per_batch: index of anchors that are responsible for prediction.
+          Shape: batch_size x object_num
+      bbox_per_batch: scaled bounding boxes. Shape: batch_size x object_num x
+          [cx, cy, w, h]
+    """
+    mc = self.mc
+
+    if shuffle:
+      if self._cur_idx + mc.BATCH_SIZE >= len(self._image_idx):
+        self._shuffle_image_idx()
+      batch_idx = self._perm_idx[self._cur_idx:self._cur_idx+mc.BATCH_SIZE]
+      self._cur_idx += mc.BATCH_SIZE
+    else:
+      if self._cur_idx + mc.BATCH_SIZE >= len(self._image_idx):
+        batch_idx = self._image_idx[self._cur_idx:] \
+            + self._image_idx[:self._cur_idx + mc.BATCH_SIZE-len(self._image_idx)]
+        self._cur_idx += mc.BATCH_SIZE - len(self._image_idx)
+      else:
+        batch_idx = self._image_idx[self._cur_idx:self._cur_idx+mc.BATCH_SIZE]
+        self._cur_idx += mc.BATCH_SIZE
+
+    image_per_batch = []
+    index_per_batch = []
+    mag_per_batch = []
+    label_per_batch = []
+    bbox_per_batch  = []
+    delta_per_batch = []
+    aidx_per_batch  = []
+    if mc.DEBUG_MODE:
+      avg_ious = 0.
+      num_objects = 0.
+      max_iou = 0.0
+      min_iou = 1.0
+      num_zero_iou_obj = 0
+
+    for idx in batch_idx:
+      # load the image
+      im = cv2.imread(self._image_path_at(idx))
+
+
+
+      orig_h, orig_w, _ = [float(v) for v in im.shape]
+
+      # load annotations
+      label_per_batch.append([b[4] for b in self._rois[idx][:]])
+      gt_bbox = np.array([[b[0], b[1], b[2], b[3]] for b in self._rois[idx][:]])
+
+      if mc.DATA_AUGMENTATION:
+        assert mc.DRIFT_X >= 0 and mc.DRIFT_Y > 0, \
+            'mc.DRIFT_X and mc.DRIFT_Y must be >= 0'
+
+        if mc.DRIFT_X > 0 or mc.DRIFT_Y > 0:
+          # Ensures that gt boundibg box is not cutted out of the image
+          max_drift_x = min(gt_bbox[:, 0] - gt_bbox[:, 2]/2.0+1)
+          max_drift_y = min(gt_bbox[:, 1] - gt_bbox[:, 3]/2.0+1)
+          assert max_drift_x >= 0 and max_drift_y >= 0, 'bbox out of image'
+
+          dy = np.random.randint(-mc.DRIFT_Y, min(mc.DRIFT_Y+1, max_drift_y))
+          dx = np.random.randint(-mc.DRIFT_X, min(mc.DRIFT_X+1, max_drift_x))
+
+          # shift bbox
+          gt_bbox[:, 0] = gt_bbox[:, 0] - dx
+          gt_bbox[:, 1] = gt_bbox[:, 1] - dy
+
+          # distort image
+          orig_h -= dy
+          orig_w -= dx
+          orig_x, dist_x = max(dx, 0), max(-dx, 0)
+          orig_y, dist_y = max(dy, 0), max(-dy, 0)
+
+          distorted_im = np.zeros(
+              (int(orig_h), int(orig_w), 3)).astype(np.uint8)
+          distorted_im[dist_y:, dist_x:, :] = im[orig_y:, orig_x:, :]
+          im = distorted_im
+
+        # Flip image with 50% probability
+        if np.random.randint(2) > 0.5:
+          im = im[:, ::-1, :]
+          gt_bbox[:, 0] = orig_w - 1 - gt_bbox[:, 0]
+
+      # scale image
+      im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
+
+      idx_, mag_ = gen_idx_mag_hog(im, self.cache)
+
+      img_fl = im.astype(np.float32, copy=False)
+      img_fl -= mc.BGR_MEANS
+
+      image_per_batch.append(img_fl)
+      index_per_batch.append(idx_)
+      mag_per_batch.append(mag_)
+
+      # scale annotation
+      x_scale = mc.IMAGE_WIDTH/orig_w
+      y_scale = mc.IMAGE_HEIGHT/orig_h
+      gt_bbox[:, 0::2] = gt_bbox[:, 0::2]*x_scale
+      gt_bbox[:, 1::2] = gt_bbox[:, 1::2]*y_scale
+      bbox_per_batch.append(gt_bbox)
+
+      aidx_per_image, delta_per_image = [], []
+      aidx_set = set()
+      for i in range(len(gt_bbox)):
+        overlaps = batch_iou(mc.ANCHOR_BOX, gt_bbox[i])
+
+        aidx = len(mc.ANCHOR_BOX)
+        for ov_idx in np.argsort(overlaps)[::-1]:
+          if overlaps[ov_idx] <= 0:
+            if mc.DEBUG_MODE:
+              min_iou = min(overlaps[ov_idx], min_iou)
+              num_objects += 1
+              num_zero_iou_obj += 1
+            break
+          if ov_idx not in aidx_set:
+            aidx_set.add(ov_idx)
+            aidx = ov_idx
+            if mc.DEBUG_MODE:
+              max_iou = max(overlaps[ov_idx], max_iou)
+              min_iou = min(overlaps[ov_idx], min_iou)
+              avg_ious += overlaps[ov_idx]
+              num_objects += 1
+            break
+
+        if aidx == len(mc.ANCHOR_BOX):
+          # even the largeset available overlap is 0, thus, choose one with the
+          # smallest square distance
+          dist = np.sum(np.square(gt_bbox[i] - mc.ANCHOR_BOX), axis=1)
+          for dist_idx in np.argsort(dist):
+            if dist_idx not in aidx_set:
+              aidx_set.add(dist_idx)
+              aidx = dist_idx
+              break
+
+        box_cx, box_cy, box_w, box_h = gt_bbox[i]
+        delta = [0]*4
+        delta[0] = (box_cx - mc.ANCHOR_BOX[aidx][0])/mc.ANCHOR_BOX[aidx][2]
+        delta[1] = (box_cy - mc.ANCHOR_BOX[aidx][1])/mc.ANCHOR_BOX[aidx][3]
+        delta[2] = np.log(box_w/mc.ANCHOR_BOX[aidx][2])
+        delta[3] = np.log(box_h/mc.ANCHOR_BOX[aidx][3])
+
+        aidx_per_image.append(aidx)
+        delta_per_image.append(delta)
+
+      delta_per_batch.append(delta_per_image)
+      aidx_per_batch.append(aidx_per_image)
+
+    if mc.DEBUG_MODE:
+      print ('max iou: {}'.format(max_iou))
+      print ('min iou: {}'.format(min_iou))
+      print ('avg iou: {}'.format(avg_ious/num_objects))
+      print ('number of objects: {}'.format(num_objects))
+      print ('number of objects with 0 iou: {}'.format(num_zero_iou_obj))
+
+    return image_per_batch, index_per_batch, mag_per_batch, label_per_batch, delta_per_batch, \
         aidx_per_batch, bbox_per_batch
 
   def evaluate_detections(self):

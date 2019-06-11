@@ -49,14 +49,11 @@ while test $# -gt 0; do
   esac
 done
 
-case "$NET" in 
+case "$NET" in
   "squeezeDet")
     export PRETRAINED_MODEL_PATH="./data/SqueezeNet/squeezenet_v1.1.pkl"
     ;;
   "squeezeDet+")
-    export PRETRAINED_MODEL_PATH="./data/SqueezeNet/squeezenet_v1.0_SR_0.750.pkl"
-    ;;
-  "squeezeDetIdx+")
     export PRETRAINED_MODEL_PATH="./data/SqueezeNet/squeezenet_v1.0_SR_0.750.pkl"
     ;;
   "resnet50")
@@ -72,7 +69,7 @@ case "$NET" in
 esac
 
 
-python ./src/train.py \
+python ./src/trainWithIdxconv.py \
   --dataset=KITTI \
   --pretrained_model_path=$PRETRAINED_MODEL_PATH \
   --data_path=./data/KITTI \
