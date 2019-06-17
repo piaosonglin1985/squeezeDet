@@ -40,51 +40,51 @@ class VGG16ConvDet(ModelSkeleton):
 
     with tf.variable_scope('conv1') as scope:
       conv1_1 = self._conv_layer(
-          'conv1_1', self.image_input, filters=64, size=3, stride=1, freeze=True)
+          'conv1_1', self.image_input, filters=64, size=3, stride=1, freeze=True) #375 x 1242
       conv1_2 = self._conv_layer(
-          'conv1_2', conv1_1, filters=64, size=3, stride=1, freeze=True)
+          'conv1_2', conv1_1, filters=64, size=3, stride=1, freeze=True) #375 x 1242
       pool1 = self._pooling_layer(
-          'pool1', conv1_2, size=2, stride=2)
+          'pool1', conv1_2, size=2, stride=2) #188 x 621
 
     with tf.variable_scope('conv2') as scope:
       conv2_1 = self._conv_layer(
-          'conv2_1', pool1, filters=128, size=3, stride=1, freeze=True)
+          'conv2_1', pool1, filters=128, size=3, stride=1, freeze=True) #188 x 621
       conv2_2 = self._conv_layer(
-          'conv2_2', conv2_1, filters=128, size=3, stride=1, freeze=True)
+          'conv2_2', conv2_1, filters=128, size=3, stride=1, freeze=True) #188 x 621
       pool2 = self._pooling_layer(
-          'pool2', conv2_2, size=2, stride=2)
+          'pool2', conv2_2, size=2, stride=2) #94 x 311
 
     with tf.variable_scope('conv3') as scope:
       conv3_1 = self._conv_layer(
-          'conv3_1', pool2, filters=256, size=3, stride=1)
+          'conv3_1', pool2, filters=256, size=3, stride=1) #94 x 311
       conv3_2 = self._conv_layer(
-          'conv3_2', conv3_1, filters=256, size=3, stride=1)
+          'conv3_2', conv3_1, filters=256, size=3, stride=1) #94 x 311
       conv3_3 = self._conv_layer(
-          'conv3_3', conv3_2, filters=256, size=3, stride=1)
+          'conv3_3', conv3_2, filters=256, size=3, stride=1) #94 x 311
       pool3 = self._pooling_layer(
-          'pool3', conv3_3, size=2, stride=2)
+          'pool3', conv3_3, size=2, stride=2) #47 x 156
 
     with tf.variable_scope('conv4') as scope:
       conv4_1 = self._conv_layer(
-          'conv4_1', pool3, filters=512, size=3, stride=1)
+          'conv4_1', pool3, filters=512, size=3, stride=1) #47 x 156
       conv4_2 = self._conv_layer(
-          'conv4_2', conv4_1, filters=512, size=3, stride=1)
+          'conv4_2', conv4_1, filters=512, size=3, stride=1) #47 x 156
       conv4_3 = self._conv_layer(
-          'conv4_3', conv4_2, filters=512, size=3, stride=1)
+          'conv4_3', conv4_2, filters=512, size=3, stride=1) #47 x 156
       pool4 = self._pooling_layer(
-          'pool4', conv4_3, size=2, stride=2)
+          'pool4', conv4_3, size=2, stride=2) #24 x 78
 
     with tf.variable_scope('conv5') as scope:
       conv5_1 = self._conv_layer(
-          'conv5_1', pool4, filters=512, size=3, stride=1)
+          'conv5_1', pool4, filters=512, size=3, stride=1) #23 x 78
       conv5_2 = self._conv_layer(
-          'conv5_2', conv5_1, filters=512, size=3, stride=1)
+          'conv5_2', conv5_1, filters=512, size=3, stride=1) #23 x 78
       conv5_3 = self._conv_layer(
-          'conv5_3', conv5_2, filters=512, size=3, stride=1)
+          'conv5_3', conv5_2, filters=512, size=3, stride=1) #23 x 78
 
     dropout5 = tf.nn.dropout(conv5_3, self.keep_prob, name='drop6')
 
     num_output = mc.ANCHOR_PER_GRID * (mc.CLASSES + 1 + 4)
     self.preds = self._conv_layer(
         'conv6', dropout5, filters=num_output, size=3, stride=1,
-        padding='SAME', xavier=False, relu=False, stddev=0.0001)
+        padding='SAME', xavier=False, relu=False, stddev=0.0001) #

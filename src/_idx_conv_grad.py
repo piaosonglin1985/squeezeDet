@@ -15,5 +15,6 @@ def _idx_conv_grad_cc(op, grad):
     print "input1 shape", op.inputs[1].shape
     print "input2 shape", op.inputs[2].shape
     print "filter_grad", filter_grad
-    #filter_grad = tf.Print(filter_grad, [filter_grad], message="This is filter_grad: ", summarize=100)
+
+    #filter_grad = tf.Print(filter_grad, [grad, grad.shape, tf.reduce_sum(grad)], message="This is grad: ", summarize=100)
     return [None, None, filter_grad]

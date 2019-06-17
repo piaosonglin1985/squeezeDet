@@ -38,11 +38,11 @@ class ResNet50ConvDet(ModelSkeleton):
           '  {}'.format(mc.PRETRAINED_MODEL_PATH)
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
 
-    conv1 = self._conv_bn_layer(
+    conv1 = self._conv_bn_layer( #375 x 1242
         self.image_input, 'conv1', 'bn_conv1', 'scale_conv1', filters=64,
-        size=7, stride=2, freeze=True, conv_with_bias=True)
+        size=7, stride=2, freeze=True, conv_with_bias=True) #size is 188 X 621
     pool1 = self._pooling_layer(
-        'pool1', conv1, size=3, stride=2, padding='VALID')
+        'pool1', conv1, size=3, stride=2, padding='VALID') #size is 93 x 310
 
     with tf.variable_scope('conv2_x') as scope:
       with tf.variable_scope('res2a'):
@@ -62,7 +62,7 @@ class ResNet50ConvDet(ModelSkeleton):
         branch2 = self._res_branch(
             res2b, layer_name='2c', in_filters=64, out_filters=256,
             down_sample=False, freeze=True)
-        res2c = tf.nn.relu(res2b+branch2, 'relu')
+        res2c = tf.nn.relu(res2b+branch2, 'relu') #size is 93 x 310
 
     with tf.variable_scope('conv3_x') as scope:
       with tf.variable_scope('res3a'):
@@ -72,7 +72,7 @@ class ResNet50ConvDet(ModelSkeleton):
         branch2 = self._res_branch(
             res2c, layer_name='3a', in_filters=128, out_filters=512,
             down_sample=True, freeze=True)
-        res3a = tf.nn.relu(branch1+branch2, 'relu')
+        res3a = tf.nn.relu(branch1+branch2, 'relu') #47 x 155
       with tf.variable_scope('res3b'):
         branch2 = self._res_branch(
             res3a, layer_name='3b', in_filters=128, out_filters=512,
@@ -87,7 +87,7 @@ class ResNet50ConvDet(ModelSkeleton):
         branch2 = self._res_branch(
             res3c, layer_name='3d', in_filters=128, out_filters=512,
             down_sample=False, freeze=True)
-        res3d = tf.nn.relu(res3c+branch2, 'relu')
+        res3d = tf.nn.relu(res3c+branch2, 'relu') #47 x 155
 
     with tf.variable_scope('conv4_x') as scope:
       with tf.variable_scope('res4a'):
@@ -97,7 +97,7 @@ class ResNet50ConvDet(ModelSkeleton):
         branch2 = self._res_branch(
             res3d, layer_name='4a', in_filters=256, out_filters=1024,
             down_sample=True)
-        res4a = tf.nn.relu(branch1+branch2, 'relu')
+        res4a = tf.nn.relu(branch1+branch2, 'relu') #24 x 78
       with tf.variable_scope('res4b'):
         branch2 = self._res_branch(
             res4a, layer_name='4b', in_filters=256, out_filters=1024,

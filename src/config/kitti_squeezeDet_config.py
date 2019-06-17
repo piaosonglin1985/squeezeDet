@@ -10,8 +10,8 @@ def kitti_squeezeDet_config():
   """Specify the parameters to tune below."""
   mc                       = base_model_config('KITTI')
 
-  mc.IMAGE_WIDTH           = 1248
-  mc.IMAGE_HEIGHT          = 384
+  mc.IMAGE_WIDTH           = 1242
+  mc.IMAGE_HEIGHT          = 375
   mc.BATCH_SIZE            = 8
 
   mc.WEIGHT_DECAY          = 0.0001

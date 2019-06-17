@@ -37,20 +37,20 @@ class SqueezeDetPlus(ModelSkeleton):
           '  {}'.format(mc.PRETRAINED_MODEL_PATH)
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
 
-    conv1 = self._conv_layer(
+    conv1 = self._conv_layer( #375 x 1242
         'conv1', self.image_input, filters=96, size=7, stride=2,
-        padding='VALID', freeze=True)
+        padding='VALID', freeze=True) #185 x 618
     pool1 = self._pooling_layer(
-        'pool1', conv1, size=3, stride=2, padding='VALID')
+        'pool1', conv1, size=3, stride=2, padding='VALID') #91 x 308
 
     fire2 = self._fire_layer(
         'fire2', pool1, s1x1=96, e1x1=64, e3x3=64, freeze=False)
     fire3 = self._fire_layer(
         'fire3', fire2, s1x1=96, e1x1=64, e3x3=64, freeze=False)
     fire4 = self._fire_layer(
-        'fire4', fire3, s1x1=192, e1x1=128, e3x3=128, freeze=False)
+        'fire4', fire3, s1x1=192, e1x1=128, e3x3=128, freeze=False) #91 x 308
     pool4 = self._pooling_layer(
-        'pool4', fire4, size=3, stride=2, padding='VALID')
+        'pool4', fire4, size=3, stride=2, padding='VALID') #45 x 153
 
     fire5 = self._fire_layer(
         'fire5', pool4, s1x1=192, e1x1=128, e3x3=128, freeze=False)
@@ -59,9 +59,9 @@ class SqueezeDetPlus(ModelSkeleton):
     fire7 = self._fire_layer(
         'fire7', fire6, s1x1=288, e1x1=192, e3x3=192, freeze=False)
     fire8 = self._fire_layer(
-        'fire8', fire7, s1x1=384, e1x1=256, e3x3=256, freeze=False)
+        'fire8', fire7, s1x1=384, e1x1=256, e3x3=256, freeze=False) #45 x 153
     pool8 = self._pooling_layer(
-        'pool8', fire8, size=3, stride=2, padding='VALID')
+        'pool8', fire8, size=3, stride=2, padding='VALID') #22 x 76
 
     fire9 = self._fire_layer(
         'fire9', pool8, s1x1=384, e1x1=256, e3x3=256, freeze=False)

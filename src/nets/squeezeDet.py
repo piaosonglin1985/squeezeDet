@@ -38,25 +38,25 @@ class SqueezeDet(ModelSkeleton):
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
       #self.caffemodel_weight = cPickle.load(open(mc.PRETRAINED_MODEL_PATH))
 
-    conv1 = self._conv_layer(
+    conv1 = self._conv_layer( #375 x 1242
         'conv1', self.image_input, filters=64, size=3, stride=2,
-        padding='SAME', freeze=True)
+        padding='SAME', freeze=True) #188 x 621
     pool1 = self._pooling_layer(
-        'pool1', conv1, size=3, stride=2, padding='SAME')
+        'pool1', conv1, size=3, stride=2, padding='SAME') #94 x 311
 
     fire2 = self._fire_layer(
         'fire2', pool1, s1x1=16, e1x1=64, e3x3=64, freeze=False)
     fire3 = self._fire_layer(
-        'fire3', fire2, s1x1=16, e1x1=64, e3x3=64, freeze=False)
+        'fire3', fire2, s1x1=16, e1x1=64, e3x3=64, freeze=False) #94 x 311
     pool3 = self._pooling_layer(
-        'pool3', fire3, size=3, stride=2, padding='SAME')
+        'pool3', fire3, size=3, stride=2, padding='SAME') #47 x 156
 
     fire4 = self._fire_layer(
         'fire4', pool3, s1x1=32, e1x1=128, e3x3=128, freeze=False)
     fire5 = self._fire_layer(
-        'fire5', fire4, s1x1=32, e1x1=128, e3x3=128, freeze=False)
+        'fire5', fire4, s1x1=32, e1x1=128, e3x3=128, freeze=False) #47 x 156
     pool5 = self._pooling_layer(
-        'pool5', fire5, size=3, stride=2, padding='SAME')
+        'pool5', fire5, size=3, stride=2, padding='SAME') #24 x 78
 
     fire6 = self._fire_layer(
         'fire6', pool5, s1x1=48, e1x1=192, e3x3=192, freeze=False)
