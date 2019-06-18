@@ -613,6 +613,7 @@ class ModelSkeleton:
 
       with tf.variable_scope(name) as scope:
           w_idx_conv = tf.get_variable("idx_conv_weigths", [num_blocks, desc_len], trainable=(not freeze))
+          self.model_params += [w_idx_conv]
           idx_conv_out = idx_conv_module.idx_conv(idx, mag, w_idx_conv, strides=[s_h, s_w], padding=padding_,
                                                   num_bins=num_bins_, cellsize=cellsize_, cells=cells_,
                                                   offset=offset_tensor_proto,
@@ -620,6 +621,7 @@ class ModelSkeleton:
 
           if biased:
               biases = tf.get_variable('biases', [1], trainable=(not freeze))
+              self.model_params += [biases]
               output = tf.nn.bias_add(idx_conv_out, biases)
           if relu:
               output = tf.nn.relu(output, name=scope.name)

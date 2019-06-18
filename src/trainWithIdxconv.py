@@ -24,8 +24,6 @@ from nets import *
 from nets.squeezeDetIDX import SqueezeDetIDX
 from nets.squeezeDetPlusIDX import SqueezeDetPlusIDX
 
-from tensorflow.python import debug as tf_debug
-
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -249,8 +247,6 @@ def train():
         coord.request_stop(e)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-
-    sess = tf_debug.TensorBoardDebugWrapperSession(sess, "songlin-GL753VE:6064")
 
     saver = tf.train.Saver(tf.global_variables())
     summary_op = tf.summary.merge_all()
