@@ -102,6 +102,49 @@ class imdb(object):
 
     return images, scales
 
+  def read_image_batch_with_idx_mag(self, shuffle=True):
+    """Only Read a batch of images
+    Args:
+      shuffle: whether or not to shuffle the dataset
+    Returns:
+      images: length batch_size list of arrays [height, width, 3]
+    """
+    mc = self.mc
+    if shuffle:
+      if self._cur_idx + mc.BATCH_SIZE >= len(self._image_idx):
+        self._shuffle_image_idx()
+      batch_idx = self._perm_idx[self._cur_idx:self._cur_idx+mc.BATCH_SIZE]
+      self._cur_idx += mc.BATCH_SIZE
+    else:
+      if self._cur_idx + mc.BATCH_SIZE >= len(self._image_idx):
+        batch_idx = self._image_idx[self._cur_idx:] \
+            + self._image_idx[:self._cur_idx + mc.BATCH_SIZE-len(self._image_idx)]
+        self._cur_idx += mc.BATCH_SIZE - len(self._image_idx)
+      else:
+        batch_idx = self._image_idx[self._cur_idx:self._cur_idx+mc.BATCH_SIZE]
+        self._cur_idx += mc.BATCH_SIZE
+
+    images, indexes, mags, scales = [], [], [], []
+    for i in batch_idx:
+      im = cv2.imread(self._image_path_at(i))
+
+      # scale image
+      im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
+      idx_, mag_ = gen_idx_mag_hog(im, self.cache)
+      img_fl = im.astype(np.float32, copy=False)
+      img_fl -= mc.BGR_MEANS
+
+      orig_h, orig_w, _ = [float(v) for v in im.shape]
+
+      x_scale = mc.IMAGE_WIDTH/orig_w
+      y_scale = mc.IMAGE_HEIGHT/orig_h
+      images.append(img_fl)
+      indexes.append(idx_)
+      mags.append(mag_)
+      scales.append((x_scale, y_scale))
+
+    return images, indexes, mags, scales
+
   def read_batch(self, shuffle=True):
     """Read a batch of image and bounding box annotations.
     Args:
