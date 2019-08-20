@@ -54,6 +54,10 @@ def eval_once(
 
         # Restores from checkpoint
         saver.restore(sess, ckpt_path)
+
+        #if it is not added there an uninitialized error for bn layer
+        sess.run(tf.global_variables_initializer())
+
         # Assuming model_checkpoint_path looks something like:
         #   /ckpt_dir/model.ckpt-0,
         # extract global_step from it.
@@ -79,6 +83,7 @@ def eval_once(
             _t['im_detect'].toc()
 
             _t['misc'].tic()
+            print(len(det_boxes))
             for j in range(len(det_boxes)):  # batch
                 # rescale
                 det_boxes[j, :, 0::2] /= scales[j][0]
@@ -205,6 +210,8 @@ def evaluate():
         eval_summary_ops.append(tf.summary.scalar('num_det_per_image', ph))
 
         saver = tf.train.Saver(model.model_params)
+
+        #saver = tf.train.Saver(tf.global_variables())
 
         summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
 

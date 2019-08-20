@@ -251,9 +251,13 @@ def train():
     saver = tf.train.Saver(tf.global_variables())
     summary_op = tf.summary.merge_all()
 
+    start_step = 0
+
     ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
     if ckpt and ckpt.model_checkpoint_path:
         saver.restore(sess, ckpt.model_checkpoint_path)
+        start_step = int(ckpt.model_checkpoint_path[ckpt.model_checkpoint_path.rfind("-")+1:])
+        print("restored from checkpoint path %s, step %d" % (ckpt.model_checkpoint_path, start_step))
 
     summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
 
@@ -274,7 +278,7 @@ def train():
     run_options = tf.RunOptions(timeout_in_ms=60000)
 
     try:
-        for step in xrange(FLAGS.max_steps):
+        for step in xrange(start_step + 1, FLAGS.max_steps):
           if coord.should_stop():
             sess.run(model.FIFOQueue.close(cancel_pending_enqueues=True))
             coord.request_stop()
@@ -347,8 +351,8 @@ def train():
         coord.join(threads)
 
 def main(argv=None):  # pylint: disable=unused-argument
-  if tf.gfile.Exists(FLAGS.train_dir):
-    tf.gfile.DeleteRecursively(FLAGS.train_dir)
+  #if tf.gfile.Exists(FLAGS.train_dir):
+    #tf.gfile.DeleteRecursively(FLAGS.train_dir)
   tf.gfile.MakeDirs(FLAGS.train_dir)
   train()
 

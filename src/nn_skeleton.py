@@ -352,6 +352,8 @@ class ModelSkeleton:
     mc = self.mc
 
     self.global_step = tf.Variable(0, name='global_step', trainable=False)
+    self.model_params += [self.global_step]
+
     lr = tf.train.exponential_decay(mc.LEARNING_RATE,
                                     self.global_step,
                                     mc.DECAY_STEPS,
@@ -362,21 +364,28 @@ class ModelSkeleton:
 
     _add_loss_summaries(self.loss)
 
-    opt = tf.train.MomentumOptimizer(learning_rate=lr, momentum=mc.MOMENTUM)
-    grads_vars = opt.compute_gradients(self.loss, tf.trainable_variables())
+    # Gets moving_mean and moving_variance update operations from tf.GraphKeys.UPDATE_OPS
+    if mc.IS_TRAINING == False:
+        update_ops = None
+    else:
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-    with tf.variable_scope('clip_gradient') as scope:
-      for i, (grad, var) in enumerate(grads_vars):
-        grads_vars[i] = (tf.clip_by_norm(grad, mc.MAX_GRAD_NORM), var)
+    with tf.control_dependencies(update_ops):
+        opt = tf.train.MomentumOptimizer(learning_rate=lr, momentum=mc.MOMENTUM)
+        grads_vars = opt.compute_gradients(self.loss, tf.trainable_variables())
 
-    apply_gradient_op = opt.apply_gradients(grads_vars, global_step=self.global_step)
+        with tf.variable_scope('clip_gradient') as scope:
+          for i, (grad, var) in enumerate(grads_vars):
+            grads_vars[i] = (tf.clip_by_norm(grad, mc.MAX_GRAD_NORM), var)
+
+        apply_gradient_op = opt.apply_gradients(grads_vars, global_step=self.global_step)
 
     for var in tf.trainable_variables():
         tf.summary.histogram(var.op.name, var)
 
-    #for grad, var in grads_vars:
-      #if grad is not None:
-        #tf.summary.histogram(var.op.name + '/gradients', grad)
+    for grad, var in grads_vars:
+      if grad is not None:
+        tf.summary.histogram(var.op.name + '/gradients', grad)
 
     with tf.control_dependencies([apply_gradient_op]):
       self.train_op = tf.no_op(name='train')
@@ -395,6 +404,21 @@ class ModelSkeleton:
   def validate_padding(self, padding):
       '''Verifies that the padding is one of the supported ones.'''
       assert padding in ('SAME', 'VALID')
+
+  def bn_layer(self, input, name, relu=False):
+      mc = self.mc
+      output = tf.layers.batch_normalization(
+          input,
+          momentum=0.95,
+          epsilon=1e-5,
+          training=mc.IS_TRAINING,
+          name=name
+      )
+
+      if relu:
+          output = tf.nn.relu(output)
+
+      return output
 
   def _conv_bn_layer(
       self, inputs, conv_param_name, bn_param_name, scale_param_name, filters,
@@ -622,10 +646,10 @@ class ModelSkeleton:
           if biased:
               biases = tf.get_variable('biases', [1], trainable=(not freeze))
               self.model_params += [biases]
-              output = tf.nn.bias_add(idx_conv_out, biases)
+              idx_conv_out = tf.nn.bias_add(idx_conv_out, biases)
           if relu:
-              output = tf.nn.relu(output, name=scope.name)
-          return output
+              idx_conv_out = tf.nn.relu(idx_conv_out, name=scope.name)
+          return idx_conv_out
   
   def _pooling_layer(
       self, layer_name, inputs, size, stride, padding='SAME'):

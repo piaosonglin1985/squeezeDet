@@ -17,3 +17,5 @@ data/ResNet/
 data/SqueezeNet/
 
 *.tgz
+
+data/outidx/
