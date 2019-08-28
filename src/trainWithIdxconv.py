@@ -258,11 +258,15 @@ def train():
         saver.restore(sess, ckpt.model_checkpoint_path)
         start_step = int(ckpt.model_checkpoint_path[ckpt.model_checkpoint_path.rfind("-")+1:])
         print("restored from checkpoint path %s, step %d" % (ckpt.model_checkpoint_path, start_step))
+    else:
+        sess.run(tf.global_variables_initializer())
+
+    # for v in tf.get_collection(tf.graphkeys.global_variables):
+    #     if v.op.name=="global_step":
+    #         print(v, sess.run(v))
+
 
     summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
-
-    init = tf.global_variables_initializer()
-    sess.run(init)
 
     coord = tf.train.Coordinator()
 

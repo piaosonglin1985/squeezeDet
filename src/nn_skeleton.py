@@ -352,6 +352,7 @@ class ModelSkeleton:
     mc = self.mc
 
     self.global_step = tf.Variable(0, name='global_step', trainable=False)
+
     self.model_params += [self.global_step]
 
     lr = tf.train.exponential_decay(mc.LEARNING_RATE,

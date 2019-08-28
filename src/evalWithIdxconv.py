@@ -55,9 +55,6 @@ def eval_once(
         # Restores from checkpoint
         saver.restore(sess, ckpt_path)
 
-        #if it is not added there an uninitialized error for bn layer
-        sess.run(tf.global_variables_initializer())
-
         # Assuming model_checkpoint_path looks something like:
         #   /ckpt_dir/model.ckpt-0,
         # extract global_step from it.
@@ -209,9 +206,14 @@ def evaluate():
         eval_summary_phs['num_det_per_image'] = ph
         eval_summary_ops.append(tf.summary.scalar('num_det_per_image', ph))
 
-        saver = tf.train.Saver(model.model_params)
+        #we should not restore variable with the name 'iou' because it depends on the batch size and it is fixed to zero initially.
+        restore_var = [v for v in tf.global_variables() if
+                       "iou" not in v.name]  # Keep only the variables, whose name does not contain 'iou'
 
+        #saver = tf.train.Saver(model.model_params)
         #saver = tf.train.Saver(tf.global_variables())
+
+        saver = tf.train.Saver(restore_var)
 
         summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
 
