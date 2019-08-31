@@ -39,10 +39,10 @@ class SqueezeDetPlusIDX(IDXDet):
     idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[7, 7],
                                       cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1])
 
-    idxconv2 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[7, 7],
+    idxconv2 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv2', cellsize_=[7, 7],
                                       cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1])
 
-    idxconv3 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[5, 5],
+    idxconv3 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv3', cellsize_=[5, 5],
                                       cells_=[1, 1], offset_=[0, 0], anchorsize_=[1, 1])
 
     concat1 = tf.concat(axis=-1, values=[conv1, idxconv1, idxconv2, idxconv3], name='concat1')
