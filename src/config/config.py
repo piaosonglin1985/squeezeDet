@@ -139,4 +139,11 @@ def base_model_config(dataset='PASCAL_VOC'):
   # indicate if the model is in training mode
   cfg.IS_TRAINING = False
 
+  # colors to visualize the different objects
+  cfg.cls2clr = {
+      'car': (255, 191, 0),
+      'cyclist': (0, 191, 255),
+      'pedestrian':(255, 0, 191)
+  }
+
   return cfg

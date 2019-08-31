@@ -13,7 +13,6 @@ from __future__ import print_function
 
 import cv2
 import time
-import sys
 import os
 import glob
 
@@ -59,7 +58,8 @@ def video_demo():
 
   # Define the codec and create VideoWriter object
   # fourcc = cv2.cv.CV_FOURCC(*'XVID')
-  fourcc = cv2.VideoWriter_fourcc(*'x264')
+  #fourcc = cv2.VideoWriter_fourcc(*'x264')
+  fourcc = cv2.VideoWriter_fourcc(*'MJPG')
   #in_file_name = os.path.split(FLAGS.input_path)[1]
   out_file_name = os.path.join(FLAGS.out_dir, 'out_result.avi')
   out = cv2.VideoWriter(out_file_name, fourcc, 30.0, (1242, 375), True)
@@ -83,7 +83,10 @@ def video_demo():
       mc.LOAD_PRETRAINED_MODEL = False
       model = SqueezeDetPlusIDX(mc, FLAGS.gpu)
 
-    saver = tf.train.Saver(model.model_params)
+    # we should not restore variable with the name 'iou' because it depends on the batch size and it is fixed to zero initially.
+    restore_var = [v for v in tf.global_variables() if
+                    "iou" not in v.name]  # Keep only the variables, whose name does not contain 'iou'
+    saver = tf.train.Saver(restore_var)
 
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
       saver.restore(sess, FLAGS.checkpoint)
@@ -137,18 +140,11 @@ def video_demo():
         times['filter']= t_filter - t_detect
 
         # Draw boxes
-
-        # TODO(bichen): move this color dict to configuration file
-        cls2clr = {
-            'car': (255, 191, 0),
-            'cyclist': (0, 191, 255),
-            'pedestrian':(255, 0, 191)
-        }
         _draw_box(
             frame, final_boxes,
             [mc.CLASS_NAMES[idx]+': (%.2f)'% prob \
                 for idx, prob in zip(final_class, final_probs)],
-            cdict=cls2clr
+            cdict=mc.cls2clr
         )
 
         t_draw = time.time()
@@ -223,19 +219,12 @@ def image_demo():
         final_probs = [final_probs[idx] for idx in keep_idx]
         final_class = [final_class[idx] for idx in keep_idx]
 
-        # TODO(bichen): move this color dict to configuration file
-        cls2clr = {
-            'car': (255, 191, 0),
-            'cyclist': (0, 191, 255),
-            'pedestrian':(255, 0, 191)
-        }
-
         # Draw boxes
         _draw_box(
             im, final_boxes,
             [mc.CLASS_NAMES[idx]+': (%.2f)'% prob \
                 for idx, prob in zip(final_class, final_probs)],
-            cdict=cls2clr,
+            cdict=mc.cls2clr
         )
 
         file_name = os.path.split(f)[1]

@@ -31,7 +31,7 @@ def _add_loss_summaries(total_loss):
   for l in losses + [total_loss]:
     tf.summary.scalar(l.op.name, l)
 
-def _variable_on_device(name, shape, initializer, trainable=True):
+def _variable_on_device(name, shape, initializer, trainable=True, dtype=tf.float32):
   """Helper to create a Variable.
 
   Args:
@@ -42,8 +42,6 @@ def _variable_on_device(name, shape, initializer, trainable=True):
   Returns:
     Variable Tensor
   """
-  # TODO(bichen): fix the hard-coded data type below
-  dtype = tf.float32
   if not callable(initializer):
     var = tf.get_variable(name, initializer=initializer, trainable=trainable)
   else:

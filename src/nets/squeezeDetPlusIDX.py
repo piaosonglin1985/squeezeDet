@@ -32,16 +32,24 @@ class SqueezeDetPlusIDX(IDXDet):
           '  {}'.format(mc.PRETRAINED_MODEL_PATH)
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
 
-    idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[8, 8], cells_=[2, 2],
-                     offset_=[0, 0, 1, -1, -1, 1, 1, 1, 0, 1, 1, 0, -1, 0], anchorsize_=[1, 1])
-
-    concat1 = tf.concat(axis=-1, values=[self.image_input, idxconv1], name='concat1')
-
     conv1 = self._conv_layer(
-        'conv1', concat1, filters=96, size=7, stride=2,
+        'conv1', self.image_input, filters=96, size=7, stride=2,
         padding='VALID', freeze=True)
+
+    idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[7, 7],
+                                      cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1])
+
+    idxconv2 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[7, 7],
+                                      cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1])
+
+    idxconv3 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[5, 5],
+                                      cells_=[1, 1], offset_=[0, 0], anchorsize_=[1, 1])
+
+    concat1 = tf.concat(axis=-1, values=[conv1, idxconv1, idxconv2, idxconv3], name='concat1')
+    bn1 = self.bn_layer(concat1, 'bn1', relu=False)
+
     pool1 = self._pooling_layer(
-        'pool1', conv1, size=3, stride=2, padding='VALID')
+        'pool1', bn1, size=3, stride=2, padding='VALID')
 
     fire2 = self._fire_layer(
         'fire2', pool1, s1x1=96, e1x1=64, e3x3=64, freeze=False)

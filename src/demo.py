@@ -125,18 +125,11 @@ def video_demo():
         times['filter']= t_filter - t_detect
 
         # Draw boxes
-
-        # TODO(bichen): move this color dict to configuration file
-        cls2clr = {
-            'car': (255, 191, 0),
-            'cyclist': (0, 191, 255),
-            'pedestrian':(255, 0, 191)
-        }
         _draw_box(
             frame, final_boxes,
             [mc.CLASS_NAMES[idx]+': (%.2f)'% prob \
                 for idx, prob in zip(final_class, final_probs)],
-            cdict=cls2clr
+            cdict=mc.cls2clr
         )
 
         t_draw = time.time()
@@ -211,19 +204,12 @@ def image_demo():
         final_probs = [final_probs[idx] for idx in keep_idx]
         final_class = [final_class[idx] for idx in keep_idx]
 
-        # TODO(bichen): move this color dict to configuration file
-        cls2clr = {
-            'car': (255, 191, 0),
-            'cyclist': (0, 191, 255),
-            'pedestrian':(255, 0, 191)
-        }
-
         # Draw boxes
         _draw_box(
             im, final_boxes,
             [mc.CLASS_NAMES[idx]+': (%.2f)'% prob \
                 for idx, prob in zip(final_class, final_probs)],
-            cdict=cls2clr,
+            cdict=mc.cls2clr
         )
 
         file_name = os.path.split(f)[1]
