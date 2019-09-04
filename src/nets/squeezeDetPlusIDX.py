@@ -34,19 +34,19 @@ class SqueezeDetPlusIDX(IDXDet):
 
     conv1 = self._conv_layer( #375 x 1242
         'conv1', self.image_input, filters=96, size=7, stride=2,
-        padding='VALID', freeze=True) #185 x 618
+        padding='VALID', freeze=True, relu=False) #185 x 618
 
     idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 2, 2, name='idxconv1', cellsize_=[7, 7],
-                                      cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[7, 7])
+                                      cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[7, 7], relu=False, biased=False)
 
     idxconv2 = self._idx_conv2d_layer([self.index_input, self.mag_input], 2, 2, name='idxconv2', cellsize_=[7, 7],
-                                      cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[7, 7])
+                                      cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[7, 7], relu=False, biased=False)
 
     idxconv3 = self._idx_conv2d_layer([self.index_input, self.mag_input], 2, 2, name='idxconv3', cellsize_=[5, 5],
-                                      cells_=[1, 1], offset_=[0, 0], anchorsize_=[7, 7])
+                                      cells_=[1, 1], offset_=[-2, -2], anchorsize_=[7, 7], relu=False, biased=False)
 
     concat1 = tf.concat(axis=-1, values=[conv1, idxconv1, idxconv2, idxconv3], name='concat1')
-    bn1 = self.bn_layer(concat1, 'bn1', relu=False)
+    bn1 = self.bn_layer(concat1, 'bn1', relu=True)
 
     pool1 = self._pooling_layer(
         'pool1', bn1, size=3, stride=2, padding='VALID')

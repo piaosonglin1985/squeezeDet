@@ -21,7 +21,7 @@ from dataset import pascal_voc, kitti
 from utils.util import bbox_transform, Timer
 from nets import *
 from nets.squeezeDetIDX import SqueezeDetIDX
-from nets.squeezePlusIDXOPT import SqueezeDetPlusIDX
+from nets.squeezeDetPlusIDX import SqueezeDetPlusIDX
 
 FLAGS = tf.app.flags.FLAGS
 
