@@ -32,28 +32,26 @@ class SqueezeDetOpt(IDXDet):
           '  {}'.format(mc.PRETRAINED_MODEL_PATH)
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
 
-    bn1 = self.bn_layer(self.mag_input, 'bn1', relu=False)
+    idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', num_bins_= 9, cellsize_=[7, 7], cells_=[2, 2],
+                     offset_=[0, 0, 3, -3, -3, 3, 3, 3, 0, 3, 3, 0, -3, 0], anchorsize_=[1, 1], relu=True, biased=False)
 
-    idxconv1 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv1', num_bins_= 9, cellsize_=[7, 7], cells_=[2, 2],
-                     offset_=[0, 0, 3, -3, -3, 3, 3, 3, 0, 3, 3, 0, -3, 0], anchorsize_=[1, 1], relu=True, biased=True)
-
-    idxconv2 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv2', num_bins_= 9, cellsize_=[7, 7],
+    idxconv2 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv2', num_bins_= 9, cellsize_=[7, 7],
                                       cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1], relu=True,
-                                      biased=True)
+                                      biased=False)
 
-    idxconv3 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv3', num_bins_= 9, cellsize_=[7, 7],
+    idxconv3 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv3', num_bins_= 9, cellsize_=[7, 7],
                                       cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1], relu=True,
-                                      biased=True)
+                                      biased=False)
 
 
-    idxconv4 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv4', num_bins_= 9, cellsize_=[5, 5],
-                                      cells_=[1, 1], offset_=[-2, -2], anchorsize_=[1, 1], relu=True, biased=True)
+    idxconv4 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv4', num_bins_= 9, cellsize_=[5, 5],
+                                      cells_=[1, 1], offset_=[-2, -2], anchorsize_=[1, 1], relu=True, biased=False)
 
     concat1 = tf.concat(axis=-1, values=[idxconv1, idxconv2, idxconv3, idxconv4], name='concat1')
-
+    bn1 = self.bn_layer(concat1, 'bn1', relu=False)
 
     conv1 = self._conv_layer(
-        'conv1', concat1, filters=64, size=7, stride=2,
+        'conv1', bn1, filters=64, size=7, stride=2,
         padding='VALID', freeze=False)
     pool1 = self._pooling_layer(
         'pool1', conv1, size=3, stride=2, padding='VALID')

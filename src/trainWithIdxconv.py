@@ -139,7 +139,7 @@ def train():
       model = SqueezeDetPlusIDX(mc)
     elif FLAGS.net == 'squeezeDetOpt':
       mc = kitti_squeezeDetPlus_config()
-      mc.BATCH_SIZE = 4
+      mc.BATCH_SIZE = 16
       mc.IS_TRAINING = True
       mc.LOAD_PRETRAINED_MODEL = False
       mc.PRETRAINED_MODEL_PATH = ""
