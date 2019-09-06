@@ -36,16 +36,27 @@ class SqueezeDetPlusIDX(IDXDet):
         'conv1', self.image_input, filters=96, size=7, stride=2,
         padding='VALID', freeze=True, relu=False) #185 x 618
 
+    print("conv1 shape:", conv1.get_shape())
+
     idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 2, 2, name='idxconv1', cellsize_=[7, 7],
                                       cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[7, 7], relu=False, biased=False)
+
+    print("idxconv1 shape:", idxconv1.get_shape())
 
     idxconv2 = self._idx_conv2d_layer([self.index_input, self.mag_input], 2, 2, name='idxconv2', cellsize_=[7, 7],
                                       cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[7, 7], relu=False, biased=False)
 
+    print("idxconv2 shape:", idxconv2.get_shape())
+
     idxconv3 = self._idx_conv2d_layer([self.index_input, self.mag_input], 2, 2, name='idxconv3', cellsize_=[5, 5],
                                       cells_=[1, 1], offset_=[-2, -2], anchorsize_=[7, 7], relu=False, biased=False)
 
+    print("idxconv3 shape:", idxconv3.get_shape())
+
     concat1 = tf.concat(axis=-1, values=[conv1, idxconv1, idxconv2, idxconv3], name='concat1')
+
+    print("concat1 shape:", concat1.get_shape())
+
     bn1 = self.bn_layer(concat1, 'bn1', relu=True)
 
     pool1 = self._pooling_layer(

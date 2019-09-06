@@ -11,7 +11,7 @@ import joblib
 import tensorflow as tf
 from nets.IDXDet import IDXDet
 
-class SqueezeDetPlusIDX(IDXDet):
+class SqueezeDetOpt(IDXDet):
   def __init__(self, mc, gpu_id=0, input_channels=2):
     with tf.device('/gpu:{}'.format(gpu_id)):
       IDXDet.__init__(self, mc, input_channels)
@@ -32,14 +32,29 @@ class SqueezeDetPlusIDX(IDXDet):
           '  {}'.format(mc.PRETRAINED_MODEL_PATH)
       self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
 
-    idxconv1 = self._idx_conv2d_layer([self.index_input, self.mag_input], 1, 1, name='idxconv1', cellsize_=[8, 8], cells_=[2, 2],
-                     offset_=[0, 0, 1, -1, -1, 1, 1, 1, 0, 1, 1, 0, -1, 0], anchorsize_=[1, 1])
+    bn1 = self.bn_layer(self.mag_input, 'bn1', relu=False)
 
-    concat1 = tf.concat(axis=-1, values=[self.image_input, idxconv1], name='concat1')
+    idxconv1 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv1', num_bins_= 9, cellsize_=[7, 7], cells_=[2, 2],
+                     offset_=[0, 0, 3, -3, -3, 3, 3, 3, 0, 3, 3, 0, -3, 0], anchorsize_=[1, 1], relu=True, biased=True)
+
+    idxconv2 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv2', num_bins_= 9, cellsize_=[7, 7],
+                                      cells_=[1, 2], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1], relu=True,
+                                      biased=True)
+
+    idxconv3 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv3', num_bins_= 9, cellsize_=[7, 7],
+                                      cells_=[2, 1], offset_=[0, 0, 2, -2, -2, 2, 2, 2], anchorsize_=[1, 1], relu=True,
+                                      biased=True)
+
+
+    idxconv4 = self._idx_conv2d_layer([self.index_input, bn1], 1, 1, name='idxconv4', num_bins_= 9, cellsize_=[5, 5],
+                                      cells_=[1, 1], offset_=[-2, -2], anchorsize_=[1, 1], relu=True, biased=True)
+
+    concat1 = tf.concat(axis=-1, values=[idxconv1, idxconv2, idxconv3, idxconv4], name='concat1')
+
 
     conv1 = self._conv_layer(
-        'conv1', concat1, filters=96, size=7, stride=2,
-        padding='VALID', freeze=True)
+        'conv1', concat1, filters=64, size=7, stride=2,
+        padding='VALID', freeze=False)
     pool1 = self._pooling_layer(
         'pool1', conv1, size=3, stride=2, padding='VALID')
 

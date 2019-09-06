@@ -23,6 +23,7 @@ from utils.util import sparse_to_dense, bgr_to_rgb, bbox_transform
 from nets import *
 from nets.squeezeDetIDX import SqueezeDetIDX
 from nets.squeezeDetPlusIDX import SqueezeDetPlusIDX
+from nets.squeezePlusIDXOPT import SqueezeDetOpt
 
 
 FLAGS = tf.app.flags.FLAGS
@@ -112,7 +113,7 @@ def train():
   with tf.Graph().as_default():
     print('Selected neural net is: {}'.format(FLAGS.net))
     assert FLAGS.net == 'vgg16' or FLAGS.net == 'resnet50' \
-        or FLAGS.net == 'squeezeDet' or FLAGS.net == 'squeezeDet+', \
+        or FLAGS.net == 'squeezeDet' or FLAGS.net == 'squeezeDet+' or FLAGS.net == 'squeezeDetOpt', \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
     if FLAGS.net == 'vgg16':
       mc = kitti_vgg16_config()
@@ -136,6 +137,13 @@ def train():
       mc.IS_TRAINING = True
       mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
       model = SqueezeDetPlusIDX(mc)
+    elif FLAGS.net == 'squeezeDetOpt':
+      mc = kitti_squeezeDetPlus_config()
+      mc.BATCH_SIZE = 4
+      mc.IS_TRAINING = True
+      mc.LOAD_PRETRAINED_MODEL = False
+      mc.PRETRAINED_MODEL_PATH = ""
+      model = SqueezeDetOpt(mc)
 
     imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
 
