@@ -1,8 +1,8 @@
 import cv2
-import hog
+import math
 import numpy as np
 from scipy.ndimage import filters
-from pylab import *
+#from pylab import *
 from lbp import *
 
 class IndexMapGen:
@@ -27,9 +27,9 @@ class IndexMapGen:
         sigma = 3
         angleScale = (float)(self.nbins / math.pi)
         height, width = img.shape  # if img is gray scale, it has only two values
-        imx = zeros(img.shape)
+        imx = np.zeros(img.shape)
         filters.gaussian_filter(img, (sigma, sigma), (0, 1), imx)
-        imy = zeros(img.shape)
+        imy = np.zeros(img.shape)
         filters.gaussian_filter(img, (sigma, sigma), (1, 0), imy)
 
         magnitude, angle = cv2.cartToPolar(imx, imy, angleInDegrees=False)
