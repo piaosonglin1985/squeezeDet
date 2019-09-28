@@ -5,12 +5,16 @@
 import os
 import random
 import shutil
-import hog
+#import hog
 from PIL import Image, ImageFont, ImageDraw
 import cv2
 import numpy as np
 from utils.util import iou, batch_iou
-from idx_mag_generation import  gen_idx_mag_hog
+
+from idx_mag_generation import IndexMapGen
+
+idx_map_gen = IndexMapGen(num_bins=9, method="HOG")
+gen_idx_mag = idx_map_gen.get_index_generation_fun()
 
 class imdb(object):
   """Image database."""
@@ -28,10 +32,9 @@ class imdb(object):
     self._perm_idx = None
     self._cur_idx = 0
 
-    self.desc = hog.HOGDescriptor(hog.Size(18, 36), hog.Size(12, 12), hog.Size(6, 6), hog.Size(6, 6), 9, 1, -1,
-                             hog.HOGDescriptor.L2Hys, 0.2, True)
-    self.cache = hog.HOGCache()
-    self.cache.init(self.desc, hog.Size(mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), hog.Size(0, 0), hog.Size(0, 0), False, hog.Size(1, 1))
+    #self.desc = hog.HOGDescriptor(hog.Size(18, 36), hog.Size(12, 12), hog.Size(6, 6), hog.Size(6, 6), 9, 1, -1, hog.HOGDescriptor.L2Hys, 0.2, True)
+    #self.cache = hog.HOGCache()
+    #self.cache.init(self.desc, hog.Size(mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), hog.Size(0, 0), hog.Size(0, 0), False, hog.Size(1, 1))
 
   @property
   def name(self):
@@ -130,7 +133,7 @@ class imdb(object):
 
       # scale image
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
-      idx_, mag_ = gen_idx_mag_hog(im, self.cache)
+      idx_, mag_ = gen_idx_mag(im)
       img_fl = im.astype(np.float32, copy=False)
       img_fl -= mc.BGR_MEANS
 
@@ -391,7 +394,8 @@ class imdb(object):
       # scale image
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
 
-      idx_, mag_ = gen_idx_mag_hog(im, self.cache)
+      gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+      idx_, mag_ = gen_idx_mag(gray)
 
       img_fl = im.astype(np.float32, copy=False)
       img_fl -= mc.BGR_MEANS
