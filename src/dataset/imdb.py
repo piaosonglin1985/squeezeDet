@@ -5,7 +5,6 @@
 import os
 import random
 import shutil
-#import hog
 from PIL import Image, ImageFont, ImageDraw
 import cv2
 import numpy as np
@@ -31,10 +30,6 @@ class imdb(object):
     # batch reader
     self._perm_idx = None
     self._cur_idx = 0
-
-    #self.desc = hog.HOGDescriptor(hog.Size(18, 36), hog.Size(12, 12), hog.Size(6, 6), hog.Size(6, 6), 9, 1, -1, hog.HOGDescriptor.L2Hys, 0.2, True)
-    #self.cache = hog.HOGCache()
-    #self.cache.init(self.desc, hog.Size(mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), hog.Size(0, 0), hog.Size(0, 0), False, hog.Size(1, 1))
 
   @property
   def name(self):
@@ -394,8 +389,7 @@ class imdb(object):
       # scale image
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
 
-      gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-      idx_, mag_ = gen_idx_mag(gray)
+      idx_, mag_ = gen_idx_mag(im)
 
       img_fl = im.astype(np.float32, copy=False)
       img_fl -= mc.BGR_MEANS
