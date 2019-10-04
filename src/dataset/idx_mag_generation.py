@@ -66,7 +66,7 @@ class IndexMapGen:
     def gen_idx_mag_lbp(self, img):
         height, width = img.shape  # if img is gray scale, it has only two values
         blur = cv2.GaussianBlur(img, (3, 3), 0)
-        indexes = np.zeros((height, width, 1), np.uint32)
+        indexes = np.zeros((height, width, 1), np.int32)
         mag = np.ones((height, width, 1), np.float32)
 
         for i in range(0, height):
@@ -88,7 +88,7 @@ class IndexMapGen:
 
         height, width = img.shape
 
-        indexes = np.zeros((height, width, 1), np.uint32)
+        indexes = np.zeros((height, width, 1), np.int32)
         mag = np.ones((height, width, 1), np.float32)
 
         for i in range(0, height):
@@ -101,30 +101,27 @@ class IndexMapGen:
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         height, width = img.shape
-        indexes = np.zeros((height, width, 2), np.uint32)
+        indexes = np.zeros((height, width, 2), np.int32)
         mag = np.ones((height, width, 2), np.float32)
 
         g = img.astype('int')
         idx0 = (g - 8) / 16
         idx1 = idx0 + 1
 
-        for i in range(0, height):
-            for j in range(0, width):
-                if idx0[i, j] < 0:
-                    indexes[i, j, 0] = 0
-                    mag[i, j, 0] = 0
-                    indexes[i, j, 1] = 0
-                    mag[i, j, 1] = (8 + g[i, j]) / 16.0
-                elif idx0[i, j] == 15:
-                    indexes[i, j, 0] = 15
-                    mag[i, j, 0] = (264 - g[i, j]) / 16.0
-                    indexes[i, j, 1] = 15
-                    mag[i, j, 1] = 0
-                else:
-                    indexes[i, j, 0] = idx0[i, j]
-                    indexes[i, j, 1] = idx1[i, j]
-                    mag[i, j, 0] = (8 + 16 * idx1[i, j] - g[i, j]) / 16.0
-                    mag[i, j, 1] = 1.0 - mag[i, j, 0]
+        indexes[:, :, 0] = idx0
+        indexes[:, :, 1] = idx1
+        mag[:, :, 0] = ((8 + 16 * idx1 - g) / 16.0).astype(np.float32)
+        mag[:, :, 1] = (1.0 - mag[:, :, 0]).astype(np.float32)
+
+        A = idx0 < 0
+        idx0[A] = 0
+        mag[A, 0] = 0
+        mag[A, 1] = (8 + g[A])/16.0
+
+        B = (idx0 == 15)
+        idx1[B] = 15
+        mag[B, 0] = (264 - g[B])/16.0
+        mag[B, 1] = 0
 
         return indexes, mag
 

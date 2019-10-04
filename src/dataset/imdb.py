@@ -8,11 +8,12 @@ import shutil
 from PIL import Image, ImageFont, ImageDraw
 import cv2
 import numpy as np
+from threading import Lock
 from utils.util import iou, batch_iou
 
 from idx_mag_generation import IndexMapGen
 
-idx_map_gen = IndexMapGen(num_bins=9, method="HOG")
+idx_map_gen = IndexMapGen(num_bins=16, method="QUANTIZE")
 gen_idx_mag = idx_map_gen.get_index_generation_fun()
 
 class imdb(object):
@@ -30,6 +31,7 @@ class imdb(object):
     # batch reader
     self._perm_idx = None
     self._cur_idx = 0
+    self.lock = Lock()
 
   @property
   def name(self):
@@ -313,6 +315,7 @@ class imdb(object):
     """
     mc = self.mc
 
+    self.lock.acquire()
     if shuffle:
       if self._cur_idx + mc.BATCH_SIZE >= len(self._image_idx):
         self._shuffle_image_idx()
@@ -326,6 +329,7 @@ class imdb(object):
       else:
         batch_idx = self._image_idx[self._cur_idx:self._cur_idx+mc.BATCH_SIZE]
         self._cur_idx += mc.BATCH_SIZE
+    self.lock.release()
 
     image_per_batch = []
     index_per_batch = []
