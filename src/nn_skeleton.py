@@ -624,6 +624,7 @@ class ModelSkeleton:
                  anchorsize_=[16, 16],
                  relu=True,
                  biased=True):
+      mc = self.mc
       # Verify that the padding is acceptable
       self.validate_padding(padding_)
 
@@ -635,7 +636,13 @@ class ModelSkeleton:
       desc_len = num_bins_ * cells_[0] * cells_[1]
 
       with tf.variable_scope(name) as scope:
-          w_idx_conv = tf.get_variable("idx_conv_weigths", [num_blocks, desc_len], trainable=(not freeze))
+
+          idx_weights_init = tf.contrib.layers.xavier_initializer_conv2d()
+          bias_init = tf.constant_initializer(0.0)
+
+          w_idx_conv = _variable_with_weight_decay('kernels', shape=[num_blocks, desc_len],
+              wd=mc.WEIGHT_DECAY, initializer=idx_weights_init, trainable=(not freeze))
+
           self.model_params += [w_idx_conv]
           idx_conv_out = idx_conv_module.idx_conv(idx, mag, w_idx_conv, strides=[s_h, s_w], padding=padding_,
                                                   num_bins=num_bins_, cellsize=cellsize_, cells=cells_,
@@ -643,7 +650,8 @@ class ModelSkeleton:
                                                   input_size=[self.mc.IMAGE_HEIGHT, self.mc.IMAGE_WIDTH], anchor_size=anchorsize_)
 
           if biased:
-              biases = tf.get_variable('biases', [1], trainable=(not freeze))
+              biases = _variable_on_device('biases', [1], bias_init, trainable=(not freeze))
+
               self.model_params += [biases]
               idx_conv_out = tf.nn.bias_add(idx_conv_out, biases)
           if relu:
